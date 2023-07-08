@@ -1,0 +1,71 @@
+import socket
+import threading
+import random
+
+import pygame
+
+class Car:
+    def __init__(self, x, y, speed, color):
+        self.x = x
+        self.y = y
+        self.speed = speed
+        self.color = color
+
+    def move(self):
+        self.x += self.speed
+
+    def draw(self, screen):
+        pygame.draw.rect(screen, self.color, (self.x, self.y, 20, 10))
+
+class Server:
+    def __init__(self, port):
+        self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.sock.bind(('', port))
+        self.sock.listen(5)
+
+        self.cars = []
+
+    def run(self):
+        while True:
+            conn, addr = self.sock.accept()
+            thread = threading.Thread(target=self.handle_client, args=(conn, addr))
+            thread.start()
+
+    def handle_client(self, conn, addr):
+        car = Car(0, 0, 0, random.choice([(255, 0, 0), (0, 255, 0), (0, 0, 255)]))
+        self.cars.append(car)
+
+        while True:
+            data = conn.recv(1024)
+            if not data:
+                break
+
+            car.move()
+
+            conn.sendall(str(car.x) + ' ' + str(car.y) + '\n')
+
+    def start(self):
+        self.thread = threading.Thread(target=self.run)
+        self.thread.start()
+
+def main():
+    server = Server(8080)
+    server.start()
+
+    pygame.init()
+    screen = pygame.display.set_mode((800, 600))
+
+    while True:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                exit()
+
+        screen.fill((0, 0, 0))
+
+        for car in server.cars:
+            car.draw(screen)
+
+        pygame.display.update()
+
+if __name__ == '__main__':
+    main()
